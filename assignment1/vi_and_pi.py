@@ -39,7 +39,7 @@ def policy_evaluation(P, nS, nA, policy, gamma=0.9, tol=1e-3):
 	----------
 	P, nS, nA, gamma:
 		defined at beginning of file
-	policy: np.array[nS]
+	policy: np.array[nS]	
 		The policy to evaluate. Maps states to actions.
 	tol: float
 		Terminate policy evaluation when
@@ -51,14 +51,29 @@ def policy_evaluation(P, nS, nA, policy, gamma=0.9, tol=1e-3):
 		the value of state s
 	"""
 
-	value_function = np.zeros(nS)
-
 	############################
 	# YOUR IMPLEMENTATION HERE #
+	
+	R_p = np.zeros(nS)
+	P_p = np.zeros((nS, nS))
 
+	for state in range(nS):
+		for action in range(nA):
+			for (p, next_state, reward, done) in P[state][action]:
+				R_p[state] += reward * policy[state][action]
+				P_p[state,next_state] += p * policy[state][action]
+
+
+	prev_v = np.ones(nS)
+	next_v = np.ones(nS)*np.inf
+
+	while np.linalg.norm(next_v - prev_v, np.inf) > tol:
+		prev_v = next_v
+		next_v = R_p + gamma * np.nan_to_num(P_p@prev_v)
 
 	############################
-	return value_function
+
+	return next_v
 
 
 def policy_improvement(P, nS, nA, value_from_policy, policy, gamma=0.9):
@@ -81,15 +96,24 @@ def policy_improvement(P, nS, nA, value_from_policy, policy, gamma=0.9):
 		given value function.
 	"""
 
-	new_policy = np.zeros(nS, dtype='int')
-
 	############################
 	# YOUR IMPLEMENTATION HERE #
 
+	Q = np.zeros((nS, nA))
+	policy = np.zeros((nS, nA))
 
+	for state in range(nS):
+		for action in range(nA):
+			for (p, next_state, reward, _) in P[state][action]:
+				Q[state, action] += (reward + gamma * value_from_policy[next_state]) * p
+
+		
 	############################
-	return new_policy
+	
+	for i, max in enumerate(np.argmax(Q, axis=1)):
+		policy[i][max] = 1
 
+	return policy
 
 def policy_iteration(P, nS, nA, gamma=0.9, tol=10e-3):
 	"""Runs policy iteration.
@@ -110,10 +134,23 @@ def policy_iteration(P, nS, nA, gamma=0.9, tol=10e-3):
 	"""
 
 	value_function = np.zeros(nS)
-	policy = np.zeros(nS, dtype=int)
+	policy = np.ones([nS, nA]) / nA
 
 	############################
 	# YOUR IMPLEMENTATION HERE #
+
+	while True:
+		value_function = policy_evaluation(P, nS, nA, policy, gamma=gamma, tol=tol)
+
+		print("evaluation", value_function)
+
+		new_policy = policy_improvement(P, nS, nA, value_function, policy, gamma=gamma)
+
+		print("new_policy", new_policy)
+
+		if np.array_equal(new_policy, policy):
+			break
+		policy = new_policy
 
 
 	############################
@@ -170,7 +207,7 @@ def render_single(env, policy, max_steps=100):
     episode_reward += rew
     if done:
       break
-  env.render();
+  env.render()
   if not done:
     print("The agent didn't reach a terminal state in {} steps.".format(max_steps))
   else:
@@ -189,11 +226,11 @@ if __name__ == "__main__":
 	print("\n" + "-"*25 + "\nBeginning Policy Iteration\n" + "-"*25)
 
 	V_pi, p_pi = policy_iteration(env.P, env.nS, env.nA, gamma=0.9, tol=1e-3)
-	render_single(env, p_pi, 100)
+	render_single(env, np.argmax(p_pi, axis=1), 100)
 
-	print("\n" + "-"*25 + "\nBeginning Value Iteration\n" + "-"*25)
+	# print("\n" + "-"*25 + "\nBeginning Value Iteration\n" + "-"*25)
 
-	V_vi, p_vi = value_iteration(env.P, env.nS, env.nA, gamma=0.9, tol=1e-3)
-	render_single(env, p_vi, 100)
+	# V_vi, p_vi = value_iteration(env.P, env.nS, env.nA, gamma=0.9, tol=1e-3)
+	# render_single(env, p_vi, 100)
 
 
