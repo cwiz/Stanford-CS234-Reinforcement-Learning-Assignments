@@ -63,12 +63,11 @@ def policy_evaluation(P, nS, nA, policy, gamma=0.9, tol=1e-3):
 				R_p[state] += reward * policy[state][action]
 				P_p[state,next_state] += p * policy[state][action]
 
-
 	prev_v = np.ones(nS)
 	next_v = np.ones(nS)*np.inf
 
 	while np.linalg.norm(next_v - prev_v, np.inf) > tol:
-		prev_v = next_v
+		prev_v = np.copy(next_v)
 		next_v = R_p + gamma * np.nan_to_num(P_p@prev_v)
 
 	############################
@@ -141,15 +140,11 @@ def policy_iteration(P, nS, nA, gamma=0.9, tol=10e-3):
 
 	while True:
 		value_function = policy_evaluation(P, nS, nA, policy, gamma=gamma, tol=tol)
-
-		print("evaluation", value_function)
-
 		new_policy = policy_improvement(P, nS, nA, value_function, policy, gamma=gamma)
-
-		print("new_policy", new_policy)
 
 		if np.array_equal(new_policy, policy):
 			break
+
 		policy = new_policy
 
 
@@ -174,14 +169,38 @@ def value_iteration(P, nS, nA, gamma=0.9, tol=1e-3):
 	policy: np.ndarray[nS]
 	"""
 
-	value_function = np.zeros(nS)
-	policy = np.zeros(nS, dtype=int)
 	############################
 	# YOUR IMPLEMENTATION HERE #
 
+	V = np.ones(nS)*np.inf
+	V_ = np.zeros(nS)
+
+	while np.linalg.norm(V-V_,np.inf) > tol:
+		V = np.copy(V_)
+		for state in range(nS):
+			rewards = np.zeros(nA)
+			for action in range(nA):
+				transitions = P[state][action]
+				for i, (p, next_state, reward, _) in enumerate(transitions):
+					rewards[action] += reward + gamma*p*V[next_state]
+			V_[state] = np.max(rewards)
+				
+	Q = np.zeros((nS, nA))
+	policy = np.zeros((nS, nA))
+	
+	for state in range(nS):
+		for action in range(nA):
+			transitions = P[state][action]
+			for i, (p, next_state, reward, _) in enumerate(transitions):
+				Q[state][action] += reward + gamma*p*V_[next_state]
+
+
+	for i, max in enumerate(np.argmax(Q, axis=1)):
+		policy[i][max] = 1
+
 
 	############################
-	return value_function, policy
+	return V_, Q
 
 def render_single(env, policy, max_steps=100):
   """
@@ -228,9 +247,9 @@ if __name__ == "__main__":
 	V_pi, p_pi = policy_iteration(env.P, env.nS, env.nA, gamma=0.9, tol=1e-3)
 	render_single(env, np.argmax(p_pi, axis=1), 100)
 
-	# print("\n" + "-"*25 + "\nBeginning Value Iteration\n" + "-"*25)
+	print("\n" + "-"*25 + "\nBeginning Value Iteration\n" + "-"*25)
 
-	# V_vi, p_vi = value_iteration(env.P, env.nS, env.nA, gamma=0.9, tol=1e-3)
-	# render_single(env, p_vi, 100)
+	V_vi, p_vi = value_iteration(env.P, env.nS, env.nA, gamma=0.9, tol=1e-3)
+	render_single(env, np.argmax(p_vi, axis=1), 100)
 
 
